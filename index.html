@@ -350,6 +350,11 @@
   let people = [];
   let dbApi = null; // Firestore handle wrapper (null until Firebase initializes, or if init fails)
   let unsubscribe = null;
+  let motionAnimate = null;
+  (async () => {
+    try { motionAnimate = (await import('https://cdn.jsdelivr.net/npm/motion@11/+esm')).animate; }
+    catch(e){ console.warn('motion library failed to load; falling back to instant transitions', e); }
+  })();
   const LOCAL_KEY = 'family_tree_people_v1_local';
 
   // ---------- Firebase (Firestore) ----------
@@ -664,12 +669,20 @@
           const hiddenCount = collapsed ? collectDescendants(unit.ids).size : 0;
           toggle.textContent = collapsed ? ('+' + hiddenCount) : '−';
           toggle.title = collapsed ? 'إظهار الفرع' : 'طي الفرع';
-          toggle.addEventListener('click', (e) => {
+          toggle.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (collapsedUnitKeys.has(unitKey)) collapsedUnitKeys.delete(unitKey);
             else collapsedUnitKeys.add(unitKey);
             saveCollapsed();
-            renderTree();
+            const rowsEl = document.getElementById('rows');
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (motionAnimate && !reduceMotion) {
+              await motionAnimate(rowsEl, { opacity: 0.12 }, { duration: 0.15 }).finished;
+              renderTree();
+              motionAnimate(rowsEl, { opacity: 1 }, { duration: 0.3 });
+            } else {
+              renderTree();
+            }
           });
           unitEl.appendChild(toggle);
         }
@@ -889,8 +902,16 @@
   modalCancel.addEventListener('click', closeModal);
   backdrop.addEventListener('click', (e)=>{ if (e.target === backdrop) closeModal(); });
 
+  function personLabel(p){
+    const duplicate = people.filter(x => x.name === p.name).length > 1;
+    if (!duplicate) return p.name;
+    const parents = (p.parentIds||[]).map(pid=>byId(pid)).filter(Boolean);
+    const parent = parents.find(x=>x.gender==='M') || parents[0];
+    if (!parent) return p.name;
+    return p.name + ' (' + (p.gender==='F' ? 'بنت' : 'بن') + ' ' + parent.name + ')';
+  }
   function personOptionsHtml(excludeId){
-    return people.filter(p=>p.id!==excludeId).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    return people.filter(p=>p.id!==excludeId).map(p=>`<option value="${p.id}">${escapeHtml(personLabel(p))}</option>`).join('');
   }
 
   function openAddModal(prefill){
@@ -1008,9 +1029,9 @@
       <div class="field"><label>سنة الوفاة</label><input type="text" id="d-death" value="${escapeHtml(p.deathYear||'')}" ${admin?'':'disabled'}></div>
       <hr class="divider">
       <div class="rel-summary">
-        ${parents.length ? 'الوالدان: ' + parents.map(x=>escapeHtml(x.name)).join('، ') : 'لا يوجد والدان مسجلان'}<br>
-        ${spouses.length ? 'الزوج/الزوجة: ' + spouses.map(x=>escapeHtml(x.name)).join('، ') : ''}<br>
-        ${children.length ? 'الأبناء: ' + children.map(x=>escapeHtml(x.name)).join('، ') : ''}
+        ${parents.length ? 'الوالدان: ' + parents.map(x=>escapeHtml(personLabel(x))).join('، ') : 'لا يوجد والدان مسجلان'}<br>
+        ${spouses.length ? 'الزوج/الزوجة: ' + spouses.map(x=>escapeHtml(personLabel(x))).join('، ') : ''}<br>
+        ${children.length ? 'الأبناء: ' + children.map(x=>escapeHtml(personLabel(x))).join('، ') : ''}
       </div>
       ${p.addedByName ? `<div class="added-by">أُضيف بواسطة: ${escapeHtml(p.addedByName)}${p.addedAt ? ' — ' + formatDate(p.addedAt) : ''}</div>` : ''}
       <div class="quick-actions">
