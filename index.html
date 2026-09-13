@@ -78,6 +78,13 @@
     padding: 8px 24px; border-bottom: 1px solid var(--hair); display: none; text-align: center;
   }
   #sync-banner.show { display: block; }
+  #naming-banner {
+    background: rgba(205,165,76,0.12); color: var(--ink); font-size: 0.85rem;
+    padding: 10px 24px; border-bottom: 1px solid var(--gold); display: none;
+    text-align: center; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  }
+  #naming-banner.show { display: flex; }
+  #naming-banner button { flex-shrink: 0; }
   #canvas-wrap { overflow: auto; width: 100%; min-height: calc(100vh - 74px); padding: 48px 24px 100px; }
   #empty-state {
     max-width: 460px; margin: 70px auto; text-align: center; color: var(--ink-soft);
@@ -129,6 +136,7 @@
   .modal h2 { font-family: 'Amiri', serif; font-weight: 700; margin-top: 0; font-size: 1.3rem; color: var(--ink); }
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 5px; font-weight: 500; }
+  .field small { display: block; font-size: 0.72rem; color: var(--ink-soft); margin-top: 4px; }
   .field input, .field select, .field textarea {
     width: 100%; padding: 9px 10px; border-radius: 4px; border: 1px solid var(--hair);
     background: var(--paper); color: var(--ink); font-size: 0.9rem; font-family: inherit;
@@ -172,6 +180,11 @@
 </header>
 
 <div id="sync-banner">هذا الجهاز غير متصل بالمزامنة الجماعية الآن — التغييرات تُحفظ محليًا على هذا المتصفح فقط.</div>
+
+<div id="naming-banner">
+  <span>عند إضافة شخص، اكتب اسمه هو فقط (وليس اسم والده أو جده) — العلاقات (الأب، الأم، الزوج/الزوجة) تُحدَّد من قائمة منفصلة، والشجرة تربط بينهم تلقائيًا.</span>
+  <button class="btn" id="naming-banner-close">فهمت</button>
+</div>
 
 <div id="canvas-wrap">
   <div id="empty-state">
@@ -627,7 +640,7 @@
     modalTitle.textContent = 'إضافة شخص';
     const hasPeople = people.length > 0;
     modalBody.innerHTML = `
-      <div class="field"><label>الاسم الكامل *</label><input type="text" id="f-name" placeholder="مثال: أحمد البرغثي"></div>
+      <div class="field"><label>الاسم *</label><input type="text" id="f-name" placeholder="مثال: أحمد"><small>اكتب اسمه فقط — الأب/الأم يُحددان من قائمة الأقارب</small></div>
       <div class="field-row">
         <div class="field"><label>الجنس</label>
           <select id="f-gender"><option value="">غير محدد</option><option value="M">ذكر</option><option value="F">أنثى</option></select>
@@ -721,7 +734,7 @@
 
     modalBody.innerHTML = `
       ${!admin ? '<div class="readonly-note">التعديل والحذف يتطلبان وضع المشرف. يمكن للجميع إضافة أقارب جدد دون قيود.</div>' : ''}
-      <div class="field"><label>الاسم الكامل</label><input type="text" id="d-name" value="${escapeHtml(p.name)}" ${admin?'':'disabled'}></div>
+      <div class="field"><label>الاسم</label><input type="text" id="d-name" value="${escapeHtml(p.name)}" ${admin?'':'disabled'}></div>
       <div class="field-row">
         <div class="field"><label>الجنس</label>
           <select id="d-gender" ${admin?'':'disabled'}>
@@ -821,10 +834,23 @@
     e.target.value = '';
   });
 
+  // ---------- Naming hint banner (shown once per browser) ----------
+  function initNamingBanner(){
+    const banner = document.getElementById('naming-banner');
+    try {
+      if (!localStorage.getItem('ft_naming_banner_dismissed')) banner.classList.add('show');
+    } catch(e) { banner.classList.add('show'); }
+    document.getElementById('naming-banner-close').addEventListener('click', () => {
+      banner.classList.remove('show');
+      try { localStorage.setItem('ft_naming_banner_dismissed', '1'); } catch(e){}
+    });
+  }
+
   // ---------- Init ----------
   async function init(){
     renderWhoAmI();
     updateAdminUI();
+    initNamingBanner();
     dbApi = await initFirebase();
 
     if (dbApi) {
