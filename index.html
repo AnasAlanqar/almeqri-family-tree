@@ -580,11 +580,21 @@
     levelPeopleIds.forEach(id => {
       if (placed.has(id)) return;
       const p = byId(id);
-      const spouseInLevel = (p.spouseIds || []).find(sid => level[sid] === level[id] && !placed.has(sid) && byId(sid));
-      if (spouseInLevel) { units.push({ type: 'couple', ids: [id, spouseInLevel] }); placed.add(id); placed.add(spouseInLevel); }
-      else { units.push({ type: 'single', ids: [id] }); placed.add(id); }
+      // Gather ALL spouses present at this level, not just one — supports multiple wives.
+      const spousesInLevel = (p.spouseIds || []).filter(sid => level[sid] === level[id] && !placed.has(sid) && byId(sid));
+      if (spousesInLevel.length > 0) {
+        const ids = [id, ...spousesInLevel];
+        units.push({ type: 'couple', ids });
+        ids.forEach(x => placed.add(x));
+      } else {
+        units.push({ type: 'single', ids: [id] });
+        placed.add(id);
+      }
     });
     return units;
+  }
+  function familyKeyOf(p){
+    return (p.parentIds && p.parentIds.length) ? [...p.parentIds].sort().join('|') : 'root:' + p.id;
   }
 
   function initials(name){ return (name || '؟').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join(''); }
@@ -626,6 +636,18 @@
 
     for (let l = 0; l <= maxLevel; l++) {
       const idsAtLevel = people.filter(p => level[p.id] === l && !hiddenIds.has(p.id)).map(p => p.id);
+      // Keep full-sibling groups together (so half-siblings from a different marriage
+      // don't interleave), ordered by birth year within each group.
+      idsAtLevel.sort((a, b) => {
+        const pa = byId(a), pb = byId(b);
+        const ka = familyKeyOf(pa), kb = familyKeyOf(pb);
+        if (ka !== kb) return ka < kb ? -1 : 1;
+        const ya = pa.birthYear || '', yb = pb.birthYear || '';
+        if (!ya && !yb) return 0;
+        if (!ya) return 1;
+        if (!yb) return -1;
+        return ya.localeCompare(yb);
+      });
       if (idsAtLevel.length === 0) continue;
       const units = groupIntoUnits(idsAtLevel, level);
       const blockEl = document.createElement('div');
@@ -781,14 +803,17 @@
       return { x, y };
     }
     document.querySelectorAll('.couple').forEach(unit => {
-      const cards = unit.querySelectorAll('.card');
-      if (cards.length === 2) {
-        const r1 = cards[0].getBoundingClientRect();
-        const r2 = cards[1].getBoundingClientRect();
+      // A husband can have several wives in the same row — connect every adjacent
+      // pair so the marriage bar touches each spouse, tagged with the whole unit.
+      const cards = Array.from(unit.querySelectorAll('.card'));
+      if (cards.length < 2) return;
+      const ids = cards.map(c => c.dataset.id);
+      for (let i = 0; i < cards.length - 1; i++) {
+        const r1 = cards[i].getBoundingClientRect();
+        const r2 = cards[i+1].getBoundingClientRect();
         const y = (r1.top + r1.bottom)/2 - treeRect.top;
         const x1 = r1.right - treeRect.left;
         const x2 = r2.left - treeRect.left;
-        const ids = [cards[0].dataset.id, cards[1].dataset.id];
         drawLine(svg, x1, y, x2, y, 2, ids);
       }
     });
@@ -800,6 +825,9 @@
         groups[key].children.push(p.id);
       }
     });
+    // When a father has multiple marriages, stagger each marriage's descent line
+    // deeper than the last so they don't overlap or cross.
+    const parentGroupCounter = {};
     Object.values(groups).forEach(g => {
       const parentEls = g.parents.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
       const childEls = g.children.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
@@ -809,7 +837,9 @@
       const parentPoints = parentEls.map(el => centerOf(el, 'bottom'));
       const midX = parentPoints.reduce((s,p)=>s+p.x,0) / parentPoints.length;
       const midY = Math.max(...parentPoints.map(p=>p.y));
-      const dropY = midY + 26;
+      const staggerIndex = Math.max(0, ...g.parents.map(pid => parentGroupCounter[pid] || 0));
+      g.parents.forEach(pid => { parentGroupCounter[pid] = (parentGroupCounter[pid] || 0) + 1; });
+      const dropY = midY + 26 + staggerIndex * 16;
 
       if (parentPoints.length >= 2) {
         const sorted = [...parentPoints].sort((a,b)=>a.x-b.x);
@@ -939,17 +969,40 @@
         </select>
       </div>
       <div class="field"><label>اختر الشخص</label><select id="f-relperson">${personOptionsHtml()}</select></div>
-      <div class="hint">عند إضافة ابن أو ابنة، سيتم ربطه تلقائيًا بزوج أو زوجة الشخص المحدد إن وُجد.</div>
+      <div id="f-child-parent2-wrap"></div>
+      <div class="hint">عند إضافة ابن أو ابنة لشخص له زوج/زوجة واحدة فقط، سيتم ربطه بها تلقائيًا.</div>
       ` : `<div class="hint">سيكون هذا أول شخص في شجرتك — سيتفرع الجميع من هنا.</div>`}
       <div class="hint">سيُسجَّل هذا الشخص كمُضاف بواسطة: ${escapeHtml(getMyName())}</div>
     `;
     backdrop.classList.add('open');
+
+    function updateChildParent2Options(){
+      const wrap = document.getElementById('f-child-parent2-wrap');
+      if (!wrap) return;
+      const relType = document.getElementById('f-reltype').value;
+      if (relType !== 'child') { wrap.innerHTML = ''; return; }
+      const rp = byId(document.getElementById('f-relperson').value);
+      const spouses = ((rp && rp.spouseIds) || []).map(id=>byId(id)).filter(Boolean);
+      if (spouses.length <= 1) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = `<div class="field"><label>الأم أو الأب الآخر — لدى ${escapeHtml(rp.name)} أكثر من زوج/زوجة *</label>
+        <select id="f-child-parent2">
+          <option value="">غير معروف / لا يوجد</option>
+          ${spouses.map(s=>`<option value="${s.id}">${escapeHtml(personLabel(s))}</option>`).join('')}
+        </select></div>`;
+    }
+    if (hasPeople) {
+      document.getElementById('f-reltype').addEventListener('change', updateChildParent2Options);
+      document.getElementById('f-relperson').addEventListener('change', updateChildParent2Options);
+      updateChildParent2Options();
+    }
+
     if (prefill.relType) {
       setTimeout(()=>{
         const relSel = document.getElementById('f-reltype');
         const perSel = document.getElementById('f-relperson');
         if (relSel) relSel.value = prefill.relType;
         if (perSel && prefill.relPersonId) perSel.value = prefill.relPersonId;
+        updateChildParent2Options();
       }, 0);
     }
 
@@ -974,7 +1027,14 @@
       if (relPerson) {
         if (relType === 'child') {
           base.parentIds.push(relPerson.id);
-          if (relPerson.spouseIds && relPerson.spouseIds.length > 0) base.parentIds.push(relPerson.spouseIds[0]);
+          const spouses = (relPerson.spouseIds || []).filter(Boolean);
+          const parent2Sel = document.getElementById('f-child-parent2');
+          if (parent2Sel) {
+            // Person has multiple spouses — never guess; use the explicit pick (or none).
+            if (parent2Sel.value) base.parentIds.push(parent2Sel.value);
+          } else if (spouses.length === 1) {
+            base.parentIds.push(spouses[0]);
+          }
           const newId = await addPersonRecord(base);
           toast('تمت إضافة ' + name + '.');
         } else if (relType === 'parent') {
