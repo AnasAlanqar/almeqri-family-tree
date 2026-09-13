@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شجرة العائلة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2efe4;
+    --panel: #e9e3cf;
+    --ink: #1e2a38;
+    --ink-soft: #55627a;
+    --card-bg: #faf8f0;
+    --hair: #d8cfae;
+    --gold: #7a5c19;
+    --gold-fg: #fbf6e6;
+    --line: #8a7550;
+    --danger: #8f3324;
+    --radius: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #131a22; --panel: #1a232d; --ink: #ece5d3; --ink-soft: #97a1af;
+      --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-fg: #1a1206;
+      --line: #7d6a45; --danger: #d97862;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #131a22; --panel: #1a232d; --ink: #ece5d3; --ink-soft: #97a1af;
+    --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-fg: #1a1206;
+    --line: #7d6a45; --danger: #d97862;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+    min-height: 100vh;
+  }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; background: var(--ink); color: var(--gold-fg);
+    border-bottom: 3px solid var(--gold);
+    flex-wrap: wrap; gap: 12px; position: sticky; top: 0; z-index: 20;
+  }
+  .header-title { display: flex; align-items: center; }
+  header h1 {
+    font-family: 'Amiri', serif; font-weight: 700; font-size: 1.45rem; margin: 0;
+  }
+  header h1 span.mark { margin-inline-end: 9px; color: var(--gold); }
+  .whoami { font-size: 0.75rem; color: var(--ink-soft); }
+  :root[data-theme] .whoami {}
+  header .whoami { color: rgba(251,246,230,0.65); }
+  .whoami button { background: none; border: none; color: var(--gold); cursor: pointer; font-size: 0.75rem; text-decoration: underline; padding: 0; margin-inline-start: 4px; font-family: inherit; }
+  .btn {
+    border: 1px solid var(--hair); background: var(--card-bg); color: var(--ink);
+    padding: 9px 15px; border-radius: var(--radius); font-size: 0.86rem; cursor: pointer;
+    font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color .15s ease, background .15s ease; font-family: inherit;
+  }
+  header .btn { background: transparent; color: var(--gold-fg); border-color: rgba(251,246,230,0.35); }
+  header .btn:hover { border-color: var(--gold); background: rgba(251,246,230,0.06); }
+  .btn:hover { border-color: var(--gold); }
+  .btn-primary { background: var(--gold); color: var(--gold-fg); border-color: var(--gold); }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .admin-badge {
+    font-size: 0.72rem; background: rgba(205,165,76,0.18); color: var(--gold);
+    border: 1px solid var(--gold); padding: 4px 10px; border-radius: 20px; font-weight: 600;
+  }
+  #sync-banner {
+    background: var(--panel); color: var(--ink-soft); font-size: 0.8rem;
+    padding: 8px 24px; border-bottom: 1px solid var(--hair); display: none; text-align: center;
+  }
+  #sync-banner.show { display: block; }
+  #canvas-wrap { overflow: auto; width: 100%; min-height: calc(100vh - 74px); padding: 48px 24px 100px; }
+  #empty-state {
+    max-width: 460px; margin: 70px auto; text-align: center; color: var(--ink-soft);
+    border: 1px solid var(--hair); background: var(--panel); border-radius: var(--radius); padding: 40px 32px;
+  }
+  #empty-state h2 { font-family: 'Amiri', serif; font-weight: 700; color: var(--ink); margin-top: 0; font-size: 1.5rem; }
+  #empty-state p { font-size: 0.92rem; line-height: 1.6; }
+  #tree { position: relative; min-width: max-content; margin: 0 auto; }
+  svg#connectors { position: absolute; top: 0; right: 0; left: 0; pointer-events: none; overflow: visible; }
+  .level-block { margin-bottom: 8px; }
+  .level-label {
+    text-align: center; font-family: 'Amiri', serif; font-style: italic;
+    font-size: 0.86rem; color: var(--ink-soft); margin-bottom: 18px;
+  }
+  .level-row { display: flex; justify-content: center; align-items: flex-start; gap: 44px; margin-bottom: 64px; position: relative; z-index: 1; }
+  .couple { display: flex; align-items: center; gap: 0; position: relative; }
+  .couple .card + .card { margin-inline-start: 20px; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--hair); border-top: 3px solid var(--gold);
+    border-radius: var(--radius); width: 148px; padding: 14px 10px 12px; text-align: center; cursor: pointer;
+    position: relative; transition: border-color .15s ease, transform .15s ease;
+  }
+  .card:hover { border-color: var(--gold); transform: translateY(-2px); }
+  @media (prefers-reduced-motion: reduce) { .card, .btn { transition: none; } .card:hover { transform: none; } }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 4px; margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Amiri', serif; font-size: 1.05rem; font-weight: 700;
+    background: var(--panel); color: var(--gold); border: 1px solid var(--hair);
+  }
+  .card .name { font-weight: 600; font-size: 0.9rem; line-height: 1.35; word-break: break-word; color: var(--ink); }
+  .card .years { font-size: 0.72rem; color: var(--ink-soft); margin-top: 3px; }
+  .fab {
+    position: fixed; bottom: 28px; right: 28px; z-index: 30;
+    width: 52px; height: 52px; border-radius: 10px; background: var(--ink); color: var(--gold);
+    border: 1px solid var(--gold); font-size: 1.5rem; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,18,14,0.55); display: none;
+    align-items: center; justify-content: center; z-index: 50; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--hair);
+    border-top: 3px solid var(--gold); width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto;
+    padding: 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .modal h2 { font-family: 'Amiri', serif; font-weight: 700; margin-top: 0; font-size: 1.3rem; color: var(--ink); }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 5px; font-weight: 500; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 9px 10px; border-radius: 4px; border: 1px solid var(--hair);
+    background: var(--paper); color: var(--ink); font-size: 0.9rem; font-family: inherit;
+  }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .quick-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+  .quick-actions .btn { font-size: 0.76rem; padding: 6px 10px; }
+  .hint { font-size: 0.76rem; color: var(--ink-soft); margin-top: -6px; margin-bottom: 12px; line-height: 1.5; }
+  .divider { border: none; border-top: 1px solid var(--hair); margin: 16px 0; }
+  .rel-summary { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.8; margin-bottom: 6px; }
+  .added-by { font-size: 0.72rem; color: var(--ink-soft); margin-top: 4px; }
+  .readonly-note { font-size: 0.76rem; color: var(--gold); background: rgba(147,112,31,0.1); border: 1px solid var(--gold); padding: 8px 10px; border-radius: 4px; margin-bottom: 12px; }
+  #toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--gold-fg); padding: 10px 18px; border-radius: 4px;
+    font-size: 0.84rem; z-index: 60; opacity: 0; transition: opacity .25s ease; pointer-events: none;
+    border: 1px solid var(--gold); max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  ::-webkit-scrollbar { height: 10px; width: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1><span class="mark">🌳</span>شجرة العائلة</h1>
+  </div>
+  <div class="toolbar">
+    <span class="whoami" id="whoami-badge"></span>
+    <span class="admin-badge" id="admin-badge" style="display:none;">وضع المشرف مفعّل</span>
+    <button class="btn" id="btn-admin">دخول المشرف</button>
+    <button class="btn" id="btn-export">⬇ تصدير</button>
+    <button class="btn" id="btn-import">⬆ استيراد</button>
+    <input type="file" id="file-import" accept="application/json" style="display:none">
+    <button class="btn btn-primary" id="btn-add-header">+ إضافة شخص</button>
+  </div>
+</header>
+
+<div id="sync-banner">⚠ هذا الجهاز غير متصل بالمزامنة الجماعية الآن — التغييرات تُحفظ محليًا على هذا المتصفح فقط.</div>
+
+<div id="canvas-wrap">
+  <div id="empty-state">
+    <h2>ابدأ شجرتك</h2>
+    <p>أضف أول شخص — نفسك، أحد والديك، أو أحد أجدادك. البقية يتفرعون من هناك. أي فرد من العائلة يملك الرابط يمكنه الإضافة، وكل إضافة تُنسب لصاحبها.</p>
+    <button class="btn btn-primary" id="btn-add-empty">+ إضافة أول شخص</button>
+  </div>
+  <div id="tree" style="display:none;">
+    <svg id="connectors"></svg>
+    <div id="rows"></div>
+  </div>
+</div>
+
+<button class="fab" id="btn-fab" title="إضافة شخص" style="display:none;">+</button>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal">
+    <h2 id="modal-title">إضافة شخص</h2>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">إلغاء</button>
+      <button class="btn btn-primary" id="modal-save">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="admin-modal-backdrop">
+  <div class="modal" id="admin-modal">
+    <h2 id="admin-modal-title">دخول المشرف</h2>
+    <div id="admin-modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn" id="admin-modal-cancel">إلغاء</button>
+      <button class="btn btn-primary" id="admin-modal-save">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Identity (self-reported, not verified) ----------
+  function getMyName(){ try { return localStorage.getItem('ft_my_name') || ''; } catch(e){ return ''; } }
+  function setMyName(n){ try { localStorage.setItem('ft_my_name', n); } catch(e){} }
+  function isAdminUnlocked(){ try { return localStorage.getItem('ft_admin_unlocked') === '1'; } catch(e){ return false; } }
+  function setAdminUnlocked(v){ try { if (v) localStorage.setItem('ft_admin_unlocked','1'); else localStorage.removeItem('ft_admin_unlocked'); } catch(e){} }
+
+  function renderWhoAmI(){
+    const el = document.getElementById('whoami-badge');
+    const name = getMyName();
+    el.innerHTML = name
+      ? 'باسم: ' + escapeHtml(name) + ' <button id="whoami-change">تغيير</button>'
+      : '';
+    const b = document.getElementById('whoami-change');
+    if (b) b.addEventListener('click', promptForName);
+  }
+
+  function promptForName(prefillCb){
+    modalTitle.textContent = 'اسمك';
+    modalBody.innerHTML = `
+      <div class="field">
+        <label>اسمك (يظهر مع كل شخص تضيفه) *</label>
+        <input type="text" id="f-myname" value="${escapeHtml(getMyName())}" placeholder="مثال: أنس">
+      </div>
+    `;
+    backdrop.classList.add('open');
+    modalSave.onclick = () => {
+      const v = document.getElementById('f-myname').value.trim();
+      if (!v) { toast('يرجى إدخال اسمك.'); return; }
+      setMyName(v);
+      renderWhoAmI();
+      closeModal();
+      if (prefillCb) prefillCb();
+    };
+  }
+
+  // ---------- Data layer: db capability with local fallback ----------
+  let people = [];
+  let dbApi = null; // Firestore handle wrapper (null until Firebase initializes, or if init fails)
+  let unsubscribe = null;
+  const LOCAL_KEY = 'family_tree_people_v1_local';
+
+  // ---------- Firebase (Firestore) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyAkhanGpLWfDLjiDE5RTSs61Gb3Lf3UJnU",
+    authDomain: "almeqri-family-tree.firebaseapp.com",
+    projectId: "almeqri-family-tree",
+    storageBucket: "almeqri-family-tree.firebasestorage.app",
+    messagingSenderId: "949086648472",
+    appId: "1:949086648472:web:abee177148bd6ecb30b8ed"
+  };
+
+  async function initFirebase(){
+    try {
+      const FB_VERSION = '10.13.2';
+      const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-app.js`);
+      const {
+        getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+        getDoc, setDoc, onSnapshot
+      } = await import(`https://www.gstatic.com/firebasejs/${FB_VERSION}/firebase-firestore.js`);
+      const app = initializeApp(firebaseConfig);
+      const fs = getFirestore(app);
+      return {
+        collectionPeople: () => collection(fs, 'people'),
+        docPeople: (id) => doc(fs, 'people', id),
+        docSettings: () => doc(fs, 'meta', 'settings'),
+        addDoc, updateDoc, deleteDoc, getDoc, setDoc, onSnapshot,
+      };
+    } catch (e) {
+      console.error('Firebase init failed', e);
+      return null;
+    }
+  }
+
+  function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'p_' + Date.now() + '_' + Math.random().toString(16).slice(2)); }
+
+  function loadLocal(){
+    try { const raw = localStorage.getItem(LOCAL_KEY); people = raw ? JSON.parse(raw) : []; }
+    catch(e){ people = []; }
+  }
+  function saveLocal(){
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(people)); }
+    catch(e){ toast('تعذّر الحفظ محليًا — قد تكون الذاكرة ممتلئة.'); }
+  }
+
+  async function addPersonRecord(data){
+    if (dbApi) {
+      const ref = await dbApi.addDoc(dbApi.collectionPeople(), data);
+      return ref.id;
+    } else {
+      const id = uid();
+      people.push({ id, ...data });
+      saveLocal();
+      renderTree();
+      return id;
+    }
+  }
+  async function updatePersonRecord(id, patch){
+    if (dbApi) {
+      await dbApi.updateDoc(dbApi.docPeople(id), patch);
+    } else {
+      const p = byId(id);
+      if (p) Object.assign(p, patch);
+      saveLocal();
+      renderTree();
+    }
+  }
+  async function deletePersonRecord(id){
+    if (dbApi) {
+      // clear references in other docs first
+      for (const p of people) {
+        let patch = null;
+        if (p.parentIds && p.parentIds.includes(id)) { patch = patch || {}; patch.parentIds = p.parentIds.filter(x=>x!==id); }
+        if (p.spouseIds && p.spouseIds.includes(id)) { patch = patch || {}; patch.spouseIds = p.spouseIds.filter(x=>x!==id); }
+        if (patch) await dbApi.updateDoc(dbApi.docPeople(p.id), patch);
+      }
+      await dbApi.deleteDoc(dbApi.docPeople(id));
+    } else {
+      people = people.filter(x => x.id !== id);
+      people.forEach(x => {
+        if (x.parentIds) x.parentIds = x.parentIds.filter(pid => pid !== id);
+        if (x.spouseIds) x.spouseIds = x.spouseIds.filter(pid => pid !== id);
+      });
+      saveLocal();
+      renderTree();
+    }
+  }
+
+  function byId(id){ return people.find(p => p.id === id); }
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>t.classList.remove('show'), 2600);
+  }
+
+  // ---------- Admin passcode (app-level gate, not real auth) ----------
+  async function sha256Hex(str){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function getSettings(){
+    if (dbApi) {
+      const snap = await dbApi.getDoc(dbApi.docSettings());
+      return snap.exists() ? snap.data() : {};
+    } else {
+      try { return JSON.parse(localStorage.getItem('ft_settings_local') || '{}'); } catch(e){ return {}; }
+    }
+  }
+  async function setSettings(patch){
+    if (dbApi) {
+      const snap = await dbApi.getDoc(dbApi.docSettings());
+      if (snap.exists()) await dbApi.updateDoc(dbApi.docSettings(), patch);
+      else await dbApi.setDoc(dbApi.docSettings(), patch);
+    } else {
+      const cur = await getSettings();
+      try { localStorage.setItem('ft_settings_local', JSON.stringify({...cur, ...patch})); } catch(e){}
+    }
+  }
+
+  function updateAdminUI(){
+    const badge = document.getElementById('admin-badge');
+    const btn = document.getElementById('btn-admin');
+    if (isAdminUnlocked()) {
+      badge.style.display = 'inline-block';
+      btn.textContent = 'تسجيل الخروج';
+    } else {
+      badge.style.display = 'none';
+      btn.textContent = 'دخول المشرف';
+    }
+  }
+
+  const adminBackdrop = document.getElementById('admin-modal-backdrop');
+  const adminTitle = document.getElementById('admin-modal-title');
+  const adminBody = document.getElementById('admin-modal-body');
+  const adminSave = document.getElementById('admin-modal-save');
+  document.getElementById('admin-modal-cancel').addEventListener('click', ()=> adminBackdrop.classList.remove('open'));
+  adminBackdrop.addEventListener('click', (e)=>{ if (e.target===adminBackdrop) adminBackdrop.classList.remove('open'); });
+
+  document.getElementById('btn-admin').addEventListener('click', async () => {
+    if (isAdminUnlocked()) {
+      setAdminUnlocked(false);
+      updateAdminUI();
+      toast('تم تسجيل الخروج من وضع المشرف.');
+      renderTree();
+      return;
+    }
+    const settings = await getSettings();
+    if (!settings.adminPasscodeHash) {
+      adminTitle.textContent = 'تعيين كلمة مرور المشرف';
+      adminBody.innerHTML = `
+        <p class="hint" style="margin-top:0;">أنشئ كلمة مرور يستخدمها فقط من تثق بهم لتعديل أو حذف الأشخاص في الشجرة. احتفظ بها ولا تشاركها مع الجميع.</p>
+        <div class="field"><label>كلمة المرور (٤ أحرف على الأقل)</label><input type="password" id="ap-new"></div>
+        <div class="field"><label>تأكيد كلمة المرور</label><input type="password" id="ap-new2"></div>
+      `;
+      adminBackdrop.classList.add('open');
+      adminSave.onclick = async () => {
+        const p1 = document.getElementById('ap-new').value;
+        const p2 = document.getElementById('ap-new2').value;
+        if (p1.length < 4) { toast('كلمة المرور قصيرة جدًا (٤ أحرف على الأقل).'); return; }
+        if (p1 !== p2) { toast('كلمتا المرور غير متطابقتين.'); return; }
+        const hash = await sha256Hex(p1);
+        await setSettings({ adminPasscodeHash: hash });
+        setAdminUnlocked(true);
+        updateAdminUI();
+        adminBackdrop.classList.remove('open');
+        toast('تم تفعيل وضع المشرف.');
+        renderTree();
+      };
+    } else {
+      adminTitle.textContent = 'دخول المشرف';
+      adminBody.innerHTML = `
+        <div class="field"><label>كلمة المرور</label><input type="password" id="ap-enter"></div>
+      `;
+      adminBackdrop.classList.add('open');
+      adminSave.onclick = async () => {
+        const val = document.getElementById('ap-enter').value;
+        const hash = await sha256Hex(val);
+        if (hash === settings.adminPasscodeHash) {
+          setAdminUnlocked(true);
+          updateAdminUI();
+          adminBackdrop.classList.remove('open');
+          toast('تم تفعيل وضع المشرف.');
+          renderTree();
+        } else {
+          toast('كلمة مرور خاطئة.');
+        }
+      };
+    }
+  });
+
+  // ---------- Layout (generation levels) ----------
+  function computeLevels(){
+    const level = {};
+    let changed = true, guard = 0;
+    people.forEach(p => { if (!p.parentIds || p.parentIds.length === 0) level[p.id] = 0; });
+    while (changed && guard < 50) {
+      changed = false; guard++;
+      people.forEach(p => {
+        if (p.parentIds && p.parentIds.length > 0) {
+          const parentLevels = p.parentIds.map(pid => level[pid]).filter(v => v !== undefined);
+          if (parentLevels.length > 0) {
+            const lvl = Math.max(...parentLevels) + 1;
+            if (level[p.id] !== lvl) { level[p.id] = lvl; changed = true; }
+          }
+        }
+      });
+      people.forEach(p => {
+        if (level[p.id] !== undefined && p.spouseIds) {
+          p.spouseIds.forEach(sid => { if (level[sid] === undefined) { level[sid] = level[p.id]; changed = true; } });
+        }
+      });
+    }
+    people.forEach(p => { if (level[p.id] === undefined) level[p.id] = 0; });
+    return level;
+  }
+
+  function groupIntoUnits(levelPeopleIds, level){
+    const placed = new Set();
+    const units = [];
+    levelPeopleIds.forEach(id => {
+      if (placed.has(id)) return;
+      const p = byId(id);
+      const spouseInLevel = (p.spouseIds || []).find(sid => level[sid] === level[id] && !placed.has(sid) && byId(sid));
+      if (spouseInLevel) { units.push({ type: 'couple', ids: [id, spouseInLevel] }); placed.add(id); placed.add(spouseInLevel); }
+      else { units.push({ type: 'single', ids: [id] }); placed.add(id); }
+    });
+    return units;
+  }
+
+  function initials(name){ return (name || '؟').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join(''); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function renderTree(){
+    const emptyState = document.getElementById('empty-state');
+    const treeEl = document.getElementById('tree');
+    const fab = document.getElementById('btn-fab');
+    if (people.length === 0) {
+      emptyState.style.display = 'block'; treeEl.style.display = 'none'; fab.style.display = 'none';
+      return;
+    }
+    emptyState.style.display = 'none'; treeEl.style.display = 'block'; fab.style.display = 'block';
+
+    const level = computeLevels();
+    const maxLevel = Math.max(...Object.values(level));
+    const rowsEl = document.getElementById('rows');
+    rowsEl.innerHTML = '';
+
+    for (let l = 0; l <= maxLevel; l++) {
+      const idsAtLevel = people.filter(p => level[p.id] === l).map(p => p.id);
+      if (idsAtLevel.length === 0) continue;
+      const units = groupIntoUnits(idsAtLevel, level);
+      const blockEl = document.createElement('div');
+      blockEl.className = 'level-block';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'level-label';
+      labelEl.textContent = 'الجيل ' + (l + 1);
+      blockEl.appendChild(labelEl);
+      const rowEl = document.createElement('div');
+      rowEl.className = 'level-row';
+      rowEl.dataset.level = l;
+      units.forEach(unit => {
+        const unitEl = document.createElement('div');
+        unitEl.className = unit.type === 'couple' ? 'couple' : 'single';
+        unitEl.dataset.unitIds = unit.ids.join(',');
+        unit.ids.forEach(pid => {
+          const p = byId(pid);
+          const card = document.createElement('div');
+          card.className = 'card'; card.dataset.id = pid;
+          const av = document.createElement('div'); av.className = 'avatar'; av.textContent = initials(p.name);
+          card.appendChild(av);
+          const nameEl = document.createElement('div'); nameEl.className = 'name'; nameEl.textContent = p.name;
+          card.appendChild(nameEl);
+          const yearsEl = document.createElement('div'); yearsEl.className = 'years';
+          const b = p.birthYear || '؟'; const d = p.deathYear ? (' – ' + p.deathYear) : '';
+          yearsEl.textContent = (p.birthYear || p.deathYear) ? (b + d) : '';
+          card.appendChild(yearsEl);
+          card.addEventListener('click', () => openDetail(pid));
+          unitEl.appendChild(card);
+        });
+        rowEl.appendChild(unitEl);
+      });
+      blockEl.appendChild(rowEl);
+      rowsEl.appendChild(blockEl);
+    }
+    requestAnimationFrame(drawConnectors);
+  }
+
+  function drawConnectors(){
+    const svg = document.getElementById('connectors');
+    const treeEl = document.getElementById('tree');
+    const treeRect = treeEl.getBoundingClientRect();
+    svg.innerHTML = '';
+    svg.setAttribute('width', treeEl.scrollWidth);
+    svg.setAttribute('height', treeEl.scrollHeight);
+
+    function centerOf(el, edge){
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width/2 - treeRect.left;
+      const y = (edge === 'bottom' ? r.bottom : r.top) - treeRect.top;
+      return { x, y };
+    }
+    document.querySelectorAll('.couple').forEach(unit => {
+      const cards = unit.querySelectorAll('.card');
+      if (cards.length === 2) {
+        const r1 = cards[0].getBoundingClientRect();
+        const r2 = cards[1].getBoundingClientRect();
+        const y = (r1.top + r1.bottom)/2 - treeRect.top;
+        const x1 = r1.right - treeRect.left;
+        const x2 = r2.left - treeRect.left;
+        drawLine(svg, x1, y, x2, y);
+      }
+    });
+    const groups = {};
+    people.forEach(p => {
+      if (p.parentIds && p.parentIds.length > 0) {
+        const key = [...p.parentIds].sort().join('|');
+        if (!groups[key]) groups[key] = { parents: p.parentIds, children: [] };
+        groups[key].children.push(p.id);
+      }
+    });
+    Object.values(groups).forEach(g => {
+      const parentEls = g.parents.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
+      const childEls = g.children.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
+      if (parentEls.length === 0 || childEls.length === 0) return;
+      const parentPoints = parentEls.map(el => centerOf(el, 'bottom'));
+      const midX = parentPoints.reduce((s,p)=>s+p.x,0) / parentPoints.length;
+      const midY = Math.max(...parentPoints.map(p=>p.y));
+      const dropY = midY + 26;
+      parentPoints.forEach(pp => drawLine(svg, pp.x, pp.y, pp.x, dropY));
+      if (parentPoints.length > 1) drawLine(svg, Math.min(...parentPoints.map(p=>p.x)), dropY, Math.max(...parentPoints.map(p=>p.x)), dropY);
+      drawLine(svg, midX, dropY, midX, dropY + 14);
+      const childPoints = childEls.map(el => centerOf(el, 'top'));
+      const busY = dropY + 14;
+      if (childPoints.length > 0) {
+        const minX = Math.min(midX, ...childPoints.map(p=>p.x));
+        const maxX = Math.max(midX, ...childPoints.map(p=>p.x));
+        drawLine(svg, minX, busY, maxX, busY);
+        childPoints.forEach(cp => drawLine(svg, cp.x, busY, cp.x, cp.y));
+      }
+    });
+  }
+  function drawLine(svg, x1,y1,x2,y2){
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', 'var(--line)'); line.setAttribute('stroke-width', '2');
+    svg.appendChild(line);
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
+
+  // ---------- Modal: Add / Detail ----------
+  const backdrop = document.getElementById('modal-backdrop');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalSave = document.getElementById('modal-save');
+  const modalCancel = document.getElementById('modal-cancel');
+  function closeModal(){ backdrop.classList.remove('open'); modalSave.style.display = ''; }
+  modalCancel.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', (e)=>{ if (e.target === backdrop) closeModal(); });
+
+  function personOptionsHtml(excludeId){
+    return people.filter(p=>p.id!==excludeId).map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  }
+
+  function openAddModal(prefill){
+    if (!getMyName()) { promptForName(() => openAddModal(prefill)); return; }
+    prefill = prefill || {};
+    modalTitle.textContent = 'إضافة شخص';
+    const hasPeople = people.length > 0;
+    modalBody.innerHTML = `
+      <div class="field"><label>الاسم الكامل *</label><input type="text" id="f-name" placeholder="مثال: أحمد البرغثي"></div>
+      <div class="field-row">
+        <div class="field"><label>الجنس</label>
+          <select id="f-gender"><option value="">غير محدد</option><option value="M">ذكر</option><option value="F">أنثى</option></select>
+        </div>
+        <div class="field"><label>سنة الميلاد</label><input type="text" id="f-birth" placeholder="مثال: 1978"></div>
+      </div>
+      <div class="field"><label>سنة الوفاة (اتركها فارغة إذا كان على قيد الحياة)</label><input type="text" id="f-death" placeholder="مثال: 2015"></div>
+      ${hasPeople ? `
+      <hr class="divider">
+      <div class="field"><label>العلاقة</label>
+        <select id="f-reltype">
+          <option value="child">ابن أو ابنة لـ</option>
+          <option value="parent">أحد الوالدين لـ</option>
+          <option value="spouse">زوج أو زوجة لـ</option>
+          <option value="sibling">شقيق أو شقيقة لـ</option>
+        </select>
+      </div>
+      <div class="field"><label>اختر الشخص</label><select id="f-relperson">${personOptionsHtml()}</select></div>
+      <div class="hint">عند إضافة ابن أو ابنة، سيتم ربطه تلقائيًا بزوج أو زوجة الشخص المحدد إن وُجد.</div>
+      ` : `<div class="hint">سيكون هذا أول شخص في شجرتك — سيتفرع الجميع من هنا.</div>`}
+      <div class="hint">سيُسجَّل هذا الشخص كمُضاف بواسطة: ${escapeHtml(getMyName())}</div>
+    `;
+    backdrop.classList.add('open');
+    if (prefill.relType) {
+      setTimeout(()=>{
+        const relSel = document.getElementById('f-reltype');
+        const perSel = document.getElementById('f-relperson');
+        if (relSel) relSel.value = prefill.relType;
+        if (perSel && prefill.relPersonId) perSel.value = prefill.relPersonId;
+      }, 0);
+    }
+
+    modalSave.onclick = async () => {
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) { toast('يرجى إدخال الاسم.'); return; }
+      const gender = document.getElementById('f-gender').value;
+      const birthYear = document.getElementById('f-birth').value.trim();
+      const deathYear = document.getElementById('f-death').value.trim();
+
+      await commitAdd(name, gender, birthYear, deathYear, hasPeople);
+      closeModal();
+    };
+
+    async function commitAdd(name, gender, birthYear, deathYear, hasPeople){
+      const base = { name, gender, birthYear, deathYear, parentIds: [], spouseIds: [], addedByName: getMyName(), addedAt: new Date().toISOString() };
+      let relType, relPerson;
+      if (hasPeople) {
+        relType = document.getElementById('f-reltype').value;
+        relPerson = byId(document.getElementById('f-relperson').value);
+      }
+      if (relPerson) {
+        if (relType === 'child') {
+          base.parentIds.push(relPerson.id);
+          if (relPerson.spouseIds && relPerson.spouseIds.length > 0) base.parentIds.push(relPerson.spouseIds[0]);
+          const newId = await addPersonRecord(base);
+          toast('تمت إضافة ' + name + '.');
+        } else if (relType === 'parent') {
+          if ((relPerson.parentIds||[]).length >= 2) { toast(relPerson.name + ' لديه والدان مسجلان بالفعل.'); return; }
+          const newId = await addPersonRecord(base);
+          await updatePersonRecord(relPerson.id, { parentIds: [...(relPerson.parentIds||[]), newId] });
+          toast('تمت إضافة ' + name + '.');
+        } else if (relType === 'spouse') {
+          const newId = await addPersonRecord({ ...base, spouseIds: [relPerson.id] });
+          await updatePersonRecord(relPerson.id, { spouseIds: [...(relPerson.spouseIds||[]), newId] });
+          toast('تمت إضافة ' + name + '.');
+        } else if (relType === 'sibling') {
+          base.parentIds = [...(relPerson.parentIds||[])];
+          await addPersonRecord(base);
+          toast('تمت إضافة ' + name + '.');
+        }
+      } else {
+        await addPersonRecord(base);
+        toast('تمت إضافة ' + name + '.');
+      }
+    }
+  }
+
+  function formatDate(iso){
+    if (!iso) return '';
+    try { const d = new Date(iso); return d.toLocaleDateString('ar'); } catch(e){ return ''; }
+  }
+
+  function openDetail(id){
+    const p = byId(id);
+    if (!p) return;
+    const admin = isAdminUnlocked();
+    modalTitle.textContent = p.name;
+    const parents = (p.parentIds||[]).map(pid=>byId(pid)).filter(Boolean);
+    const spouses = (p.spouseIds||[]).map(pid=>byId(pid)).filter(Boolean);
+    const children = people.filter(c => (c.parentIds||[]).includes(id));
+
+    modalBody.innerHTML = `
+      ${!admin ? '<div class="readonly-note">التعديل والحذف يتطلبان وضع المشرف. يمكن للجميع إضافة أقارب جدد دون قيود.</div>' : ''}
+      <div class="field"><label>الاسم الكامل</label><input type="text" id="d-name" value="${escapeHtml(p.name)}" ${admin?'':'disabled'}></div>
+      <div class="field-row">
+        <div class="field"><label>الجنس</label>
+          <select id="d-gender" ${admin?'':'disabled'}>
+            <option value="" ${p.gender===''?'selected':''}>غير محدد</option>
+            <option value="M" ${p.gender==='M'?'selected':''}>ذكر</option>
+            <option value="F" ${p.gender==='F'?'selected':''}>أنثى</option>
+          </select>
+        </div>
+        <div class="field"><label>سنة الميلاد</label><input type="text" id="d-birth" value="${escapeHtml(p.birthYear||'')}" ${admin?'':'disabled'}></div>
+      </div>
+      <div class="field"><label>سنة الوفاة</label><input type="text" id="d-death" value="${escapeHtml(p.deathYear||'')}" ${admin?'':'disabled'}></div>
+      <hr class="divider">
+      <div class="rel-summary">
+        ${parents.length ? 'الوالدان: ' + parents.map(x=>escapeHtml(x.name)).join('، ') : 'لا يوجد والدان مسجلان'}<br>
+        ${spouses.length ? 'الزوج/الزوجة: ' + spouses.map(x=>escapeHtml(x.name)).join('، ') : ''}<br>
+        ${children.length ? 'الأبناء: ' + children.map(x=>escapeHtml(x.name)).join('، ') : ''}
+      </div>
+      ${p.addedByName ? `<div class="added-by">أُضيف بواسطة: ${escapeHtml(p.addedByName)}${p.addedAt ? ' — ' + formatDate(p.addedAt) : ''}</div>` : ''}
+      <div class="quick-actions">
+        <button class="btn" data-rel="parent">+ إضافة أحد الوالدين</button>
+        <button class="btn" data-rel="spouse">+ إضافة زوج/زوجة</button>
+        <button class="btn" data-rel="child">+ إضافة ابن/ابنة</button>
+        <button class="btn" data-rel="sibling">+ إضافة شقيق/شقيقة</button>
+      </div>
+      <hr class="divider">
+      <button class="btn btn-danger" id="d-delete" ${admin?'':'disabled'}>حذف هذا الشخص</button>
+    `;
+    backdrop.classList.add('open');
+
+    modalBody.querySelectorAll('[data-rel]').forEach(btn => {
+      btn.addEventListener('click', () => { closeModal(); openAddModal({ relType: btn.dataset.rel, relPersonId: id }); });
+    });
+    const delBtn = document.getElementById('d-delete');
+    if (admin) {
+      delBtn.addEventListener('click', async () => {
+        if (!confirm('هل تريد حذف ' + p.name + '؟ سيُزال من الشجرة، وتُحذف روابطه بالآخرين، ويبقى أبناؤه لكن دون رابط له.')) return;
+        await deletePersonRecord(id);
+        closeModal();
+        toast('تم الحذف.');
+      });
+    }
+
+    modalSave.style.display = admin ? '' : 'none';
+    modalSave.onclick = async () => {
+      if (!admin) return;
+      await updatePersonRecord(id, {
+        name: document.getElementById('d-name').value.trim() || p.name,
+        gender: document.getElementById('d-gender').value,
+        birthYear: document.getElementById('d-birth').value.trim(),
+        deathYear: document.getElementById('d-death').value.trim(),
+      });
+      closeModal();
+      toast('تم الحفظ.');
+    };
+  }
+
+  // ---------- Buttons ----------
+  document.getElementById('btn-add-header').addEventListener('click', () => openAddModal());
+  document.getElementById('btn-add-empty').addEventListener('click', () => openAddModal());
+  document.getElementById('btn-fab').addEventListener('click', () => openAddModal());
+
+  document.getElementById('btn-export').addEventListener('click', () => {
+    try {
+      const blob = new Blob([JSON.stringify(people, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'family-tree-backup.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('تم تنزيل نسخة احتياطية.');
+    } catch(e) { toast('فشل التصدير.'); }
+  });
+
+  document.getElementById('btn-import').addEventListener('click', () => {
+    if (!isAdminUnlocked()) { toast('الاستيراد يتطلب وضع المشرف.'); return; }
+    document.getElementById('file-import').click();
+  });
+  document.getElementById('file-import').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data)) throw new Error('bad format');
+        if (people.length > 0 && !confirm('سيستبدل هذا الشجرة الحالية (' + people.length + ' شخص) بالملف المستورد (' + data.length + ' شخص). المتابعة؟')) return;
+        if (dbApi) {
+          for (const old of people) await dbApi.deleteDoc(dbApi.docPeople(old.id));
+          for (const p of data) { const { id, ...rest } = p; await dbApi.setDoc(dbApi.docPeople(id), rest); }
+        } else {
+          people = data; saveLocal(); renderTree();
+        }
+        toast('تم الاستيراد.');
+      } catch(err) { toast('الملف غير صالح.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ---------- Init ----------
+  async function init(){
+    renderWhoAmI();
+    updateAdminUI();
+    dbApi = await initFirebase();
+
+    if (dbApi) {
+      document.getElementById('sync-banner').classList.remove('show');
+      unsubscribe = dbApi.onSnapshot(dbApi.collectionPeople(), (snap) => {
+        people = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTree();
+      }, (err) => {
+        console.error(err);
+        toast('تعذّرت المزامنة الجماعية — التغييرات قد لا تصل للآخرين.');
+      });
+    } else {
+      document.getElementById('sync-banner').classList.add('show');
+      loadLocal();
+      renderTree();
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>

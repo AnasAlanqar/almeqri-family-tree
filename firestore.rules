@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /people/{personId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /meta/{metaId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+  }
+}
