@@ -35,9 +35,14 @@
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--paper); color: var(--ink);
+    margin: 0; background-color: var(--paper); color: var(--ink);
     font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     min-height: 100vh;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KPGcgZmlsbD0iI2NkYTU0YyIgb3BhY2l0eT0iMC4wNiI+CjxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9Im9wYWNpdHkiIHZhbHVlcz0iMC4wNDswLjA5OzAuMDQiIGR1cj0iN3MiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTE0MiwxMDAgQTQyLDQyIDAgMSwwIDU4LDEwMCBBNDIsNDIgMCAxLDAgMTQyLDEwMCBaIE0xMzgsOTMgQTI4LDI4IDAgMSwwIDgyLDkzIEEyOCwyOCAwIDEsMCAxMzgsOTMgWiIvPgo8cG9seWdvbiBwb2ludHM9Ijc4LDExMyA4MS4zNywxMjMuMzYgOTIuMjcsMTIzLjM2IDgzLjQ1LDEyOS43NyA4Ni44MiwxNDAuMTQgNzgsMTMzLjczIDY5LjE4LDE0MC4xNCA3Mi41NSwxMjkuNzcgNjMuNzMsMTIzLjM2IDc0LjYzLDEyMy4zNiIvPgo8L2c+Cjwvc3ZnPgo=");
+    background-repeat: no-repeat;
+    background-position: center 60vh;
+    background-size: min(70vw, 640px);
+    background-attachment: fixed;
   }
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   header {
@@ -72,6 +77,10 @@
   .admin-badge {
     font-size: 0.72rem; background: rgba(205,165,76,0.18); color: var(--gold);
     border: 1px solid var(--gold); padding: 4px 10px; border-radius: 20px; font-weight: 600;
+  }
+  #flag-strip {
+    height: 7px; width: 100%;
+    background: linear-gradient(to bottom, #CE1126 0%, #CE1126 28.5%, #000000 28.5%, #000000 71.5%, #007A3D 71.5%, #007A3D 100%);
   }
   #sync-banner {
     background: var(--panel); color: var(--ink-soft); font-size: 0.8rem;
@@ -178,6 +187,8 @@
     <button class="btn btn-primary" id="btn-add-header">+ إضافة شخص</button>
   </div>
 </header>
+
+<div id="flag-strip"></div>
 
 <div id="sync-banner">هذا الجهاز غير متصل بالمزامنة الجماعية الآن — التغييرات تُحفظ محليًا على هذا المتصفح فقط.</div>
 
