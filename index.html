@@ -144,8 +144,17 @@
   #tree.hovering .card { transition: opacity .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
   #tree.hovering .card:not(.card-active):not(.card-related) { opacity: 0.4; }
   #tree.searching .card.dim { opacity: 0.32; }
-  .couple { display: flex; align-items: center; gap: 0; position: relative; }
+  .couple, .single { display: flex; align-items: center; gap: 0; position: relative; }
   .couple .card + .card { margin-inline-start: 20px; }
+  .branch-toggle {
+    position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%);
+    width: 24px; height: 24px; border-radius: 50%; z-index: 5;
+    background: var(--card-bg); border: 1.5px solid var(--gold); color: var(--gold);
+    font-size: 0.7rem; font-weight: 700; font-family: 'IBM Plex Sans Arabic', sans-serif;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 1px 3px var(--shadow); padding: 0; direction: ltr;
+  }
+  .branch-toggle:hover { background: var(--gold); color: var(--gold-fg); }
   .card {
     background: var(--card-bg); border: 1px solid var(--hair);
     border-radius: 10px; width: 152px; padding: 16px 10px 12px; text-align: center; cursor: pointer;
@@ -576,6 +585,21 @@
   function initials(name){ return (name || '؟').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join(''); }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+  // ---------- Branch collapse/expand (local viewing preference, not synced) ----------
+  let collapsedUnitKeys = new Set();
+  try { collapsedUnitKeys = new Set(JSON.parse(localStorage.getItem('ft_collapsed') || '[]')); } catch(e){}
+  function saveCollapsed(){ try { localStorage.setItem('ft_collapsed', JSON.stringify([...collapsedUnitKeys])); } catch(e){} }
+  function directChildrenIds(id){ return people.filter(c => (c.parentIds||[]).includes(id)).map(c=>c.id); }
+  function collectDescendants(ids, acc){
+    acc = acc || new Set();
+    ids.forEach(id => {
+      directChildrenIds(id).forEach(cid => {
+        if (!acc.has(cid)) { acc.add(cid); collectDescendants([cid], acc); }
+      });
+    });
+    return acc;
+  }
+
   function renderTree(){
     const emptyState = document.getElementById('empty-state');
     const treeEl = document.getElementById('tree');
@@ -592,8 +616,11 @@
     const rowsEl = document.getElementById('rows');
     rowsEl.innerHTML = '';
 
+    const hiddenIds = new Set();
+    collapsedUnitKeys.forEach(key => collectDescendants(key.split(','), hiddenIds));
+
     for (let l = 0; l <= maxLevel; l++) {
-      const idsAtLevel = people.filter(p => level[p.id] === l).map(p => p.id);
+      const idsAtLevel = people.filter(p => level[p.id] === l && !hiddenIds.has(p.id)).map(p => p.id);
       if (idsAtLevel.length === 0) continue;
       const units = groupIntoUnits(idsAtLevel, level);
       const blockEl = document.createElement('div');
@@ -626,6 +653,26 @@
           card.addEventListener('mouseleave', () => onCardHoverLeave());
           unitEl.appendChild(card);
         });
+        const unitChildIds = new Set();
+        unit.ids.forEach(id => directChildrenIds(id).forEach(cid => unitChildIds.add(cid)));
+        if (unitChildIds.size > 0) {
+          const unitKey = [...unit.ids].sort().join(',');
+          const collapsed = collapsedUnitKeys.has(unitKey);
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'branch-toggle';
+          const hiddenCount = collapsed ? collectDescendants(unit.ids).size : 0;
+          toggle.textContent = collapsed ? ('+' + hiddenCount) : '−';
+          toggle.title = collapsed ? 'إظهار الفرع' : 'طي الفرع';
+          toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (collapsedUnitKeys.has(unitKey)) collapsedUnitKeys.delete(unitKey);
+            else collapsedUnitKeys.add(unitKey);
+            saveCollapsed();
+            renderTree();
+          });
+          unitEl.appendChild(toggle);
+        }
         rowEl.appendChild(unitEl);
       });
       blockEl.appendChild(rowEl);
