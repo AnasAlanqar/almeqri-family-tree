@@ -15,23 +15,26 @@
     --ink-soft: #55627a;
     --card-bg: #faf8f0;
     --hair: #d8cfae;
-    --gold: #7a5c19;
+    --gold: #8a6a1f;
+    --gold-soft: rgba(138,106,31,0.14);
     --gold-fg: #fbf6e6;
     --line: #8a7550;
+    --seal: #2f6b4f;
     --danger: #8f3324;
+    --shadow: rgba(30,42,56,0.16);
     --radius: 6px;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --paper: #131a22; --panel: #1a232d; --ink: #ece5d3; --ink-soft: #97a1af;
-      --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-fg: #1a1206;
-      --line: #7d6a45; --danger: #d97862;
+      --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-soft: rgba(205,165,76,0.16); --gold-fg: #1a1206;
+      --line: #7d6a45; --seal: #5aa383; --danger: #d97862; --shadow: rgba(0,0,0,0.4);
     }
   }
   :root[data-theme="dark"] {
     --paper: #131a22; --panel: #1a232d; --ink: #ece5d3; --ink-soft: #97a1af;
-    --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-fg: #1a1206;
-    --line: #7d6a45; --danger: #d97862;
+    --card-bg: #1c252f; --hair: #333f4c; --gold: #cda54c; --gold-soft: rgba(205,165,76,0.16); --gold-fg: #1a1206;
+    --line: #7d6a45; --seal: #5aa383; --danger: #d97862; --shadow: rgba(0,0,0,0.4);
   }
   * { box-sizing: border-box; }
   body {
@@ -47,15 +50,34 @@
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 24px; background: var(--ink); color: var(--gold-fg);
+    padding: 16px 24px; background: linear-gradient(180deg, var(--ink), color-mix(in srgb, var(--ink) 92%, black));
+    color: var(--gold-fg);
     border-bottom: 3px solid var(--gold);
     flex-wrap: wrap; gap: 12px; position: sticky; top: 0; z-index: 20;
   }
   .header-title { display: flex; align-items: center; }
   header h1 {
     font-family: 'Amiri', serif; font-weight: 700; font-size: 1.45rem; margin: 0;
+    letter-spacing: 0.01em;
   }
   header h1 span.mark { margin-inline-end: 9px; color: var(--gold); }
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-wrap input {
+    width: 190px; padding: 8px 34px 8px 12px; border-radius: var(--radius);
+    border: 1px solid rgba(251,246,230,0.3); background: rgba(251,246,230,0.06);
+    color: var(--gold-fg); font-family: inherit; font-size: 0.85rem;
+    transition: width .2s ease, background .15s ease, border-color .15s ease;
+  }
+  .search-wrap input::placeholder { color: rgba(251,246,230,0.45); }
+  .search-wrap input:focus { width: 230px; background: rgba(251,246,230,0.1); border-color: var(--gold); outline: none; }
+  .search-wrap svg { position: absolute; inset-inline-end: 10px; width: 14px; height: 14px; pointer-events: none; opacity: 0.55; }
+  @media (max-width: 720px) {
+    header { padding: 12px 14px; }
+    header h1 { font-size: 1.15rem; }
+    .search-wrap input, .search-wrap input:focus { width: 100%; }
+    .search-wrap { flex-basis: 100%; order: 3; }
+    .toolbar { width: 100%; }
+  }
   .whoami { font-size: 0.75rem; color: var(--ink-soft); }
   :root[data-theme] .whoami {}
   header .whoami { color: rgba(251,246,230,0.65); }
@@ -95,43 +117,74 @@
   #naming-banner.show { display: flex; }
   #naming-banner button { flex-shrink: 0; }
   #canvas-wrap { overflow: auto; width: 100%; min-height: calc(100vh - 74px); padding: 48px 24px 100px; }
+  @media (max-width: 980px) { #canvas-wrap { padding: 32px 16px 120px; } }
   #empty-state {
     max-width: 460px; margin: 70px auto; text-align: center; color: var(--ink-soft);
     border: 1px solid var(--hair); background: var(--panel); border-radius: var(--radius); padding: 40px 32px;
   }
   #empty-state h2 { font-family: 'Amiri', serif; font-weight: 700; color: var(--ink); margin-top: 0; font-size: 1.5rem; }
   #empty-state p { font-size: 0.92rem; line-height: 1.6; }
-  #tree { position: relative; min-width: max-content; margin: 0 auto; }
+  #tree { position: relative; min-width: max-content; margin: 0 auto; transition: transform .2s ease; }
   svg#connectors { position: absolute; top: 0; right: 0; left: 0; pointer-events: none; overflow: visible; }
+  svg#connectors line, svg#connectors path {
+    stroke: var(--line); fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+    transition: stroke .2s ease, stroke-width .2s ease;
+  }
+  svg#connectors .conn-highlight { stroke: var(--gold); }
   .level-block { margin-bottom: 8px; }
   .level-label {
-    text-align: center; font-family: 'Amiri', serif; font-style: italic;
-    font-size: 0.86rem; color: var(--ink-soft); margin-bottom: 18px;
+    width: fit-content; margin: 0 auto 18px;
+    text-align: center; font-family: 'Amiri', serif; font-weight: 700;
+    font-size: 0.8rem; color: var(--gold); background: var(--gold-soft);
+    border: 1px solid var(--hair); border-bottom: 3px solid var(--gold);
+    border-radius: 3px 3px 0 0; padding: 5px 16px; line-height: 1.3;
   }
   .level-row { display: flex; justify-content: center; align-items: flex-start; gap: 44px; margin-bottom: 64px; position: relative; z-index: 1; }
+  #tree.hovering .card { transition: opacity .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+  #tree.hovering .card:not(.card-active):not(.card-related) { opacity: 0.4; }
+  #tree.searching .card.dim { opacity: 0.32; }
   .couple { display: flex; align-items: center; gap: 0; position: relative; }
   .couple .card + .card { margin-inline-start: 20px; }
   .card {
-    background: var(--card-bg); border: 1px solid var(--hair); border-top: 3px solid var(--gold);
-    border-radius: var(--radius); width: 148px; padding: 14px 10px 12px; text-align: center; cursor: pointer;
-    position: relative; transition: border-color .15s ease, transform .15s ease;
+    background: var(--card-bg); border: 1px solid var(--hair);
+    border-radius: 10px; width: 152px; padding: 16px 10px 12px; text-align: center; cursor: pointer;
+    position: relative; transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+    box-shadow: 0 1px 2px var(--shadow);
   }
-  .card:hover { border-color: var(--gold); transform: translateY(-2px); }
-  @media (prefers-reduced-motion: reduce) { .card, .btn { transition: none; } .card:hover { transform: none; } }
+  .card::before {
+    content: ''; position: absolute; top: 0; inset-inline-start: 14px; inset-inline-end: 14px;
+    height: 3px; border-radius: 0 0 3px 3px; background: var(--gold);
+  }
+  .card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: 0 8px 18px var(--shadow); }
+  .card.card-active { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft), 0 8px 18px var(--shadow); }
+  .card.card-related { border-color: var(--gold); }
+  .card.match { box-shadow: 0 0 0 3px var(--gold-soft); }
+  @media (prefers-reduced-motion: reduce) { .card, .btn, #tree { transition: none; } .card:hover { transform: none; } }
   .avatar {
-    width: 46px; height: 46px; border-radius: 4px; margin: 0 auto 10px;
+    width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 10px;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Amiri', serif; font-size: 1.05rem; font-weight: 700;
-    background: var(--panel); color: var(--gold); border: 1px solid var(--hair);
+    font-family: 'Amiri', serif; font-size: 1.1rem; font-weight: 700;
+    background: var(--panel); color: var(--gold);
+    border: 2px solid var(--hair); box-shadow: inset 0 0 0 2px var(--card-bg);
   }
-  .card .name { font-weight: 600; font-size: 0.9rem; line-height: 1.35; word-break: break-word; color: var(--ink); }
-  .card .years { font-size: 0.72rem; color: var(--ink-soft); margin-top: 3px; }
+  .card .name { font-family: 'Amiri', serif; font-weight: 700; font-size: 0.96rem; line-height: 1.35; word-break: break-word; color: var(--ink); }
+  .card .years { font-size: 0.72rem; color: var(--ink-soft); margin-top: 4px; font-family: 'IBM Plex Sans Arabic', sans-serif; }
   .fab {
     position: fixed; bottom: 28px; right: 28px; z-index: 30;
     width: 52px; height: 52px; border-radius: 10px; background: var(--ink); color: var(--gold);
     border: 1px solid var(--gold); font-size: 1.5rem; cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,0.25);
   }
+  .zoom-controls {
+    position: fixed; bottom: 28px; left: 28px; z-index: 30;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .zoom-controls button {
+    width: 40px; height: 40px; border-radius: 8px; background: var(--card-bg); color: var(--ink);
+    border: 1px solid var(--hair); font-size: 1.1rem; cursor: pointer; box-shadow: 0 2px 8px var(--shadow);
+  }
+  .zoom-controls button:hover { border-color: var(--gold); color: var(--gold); }
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(15,18,14,0.55); display: none;
     align-items: center; justify-content: center; z-index: 50; padding: 16px;
@@ -178,6 +231,10 @@
     <h1>شجرة عائلة المقري</h1>
   </div>
   <div class="toolbar">
+    <div class="search-wrap">
+      <input type="text" id="search-input" placeholder="ابحث عن اسم..." autocomplete="off">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
     <span class="whoami" id="whoami-badge"></span>
     <span class="admin-badge" id="admin-badge" style="display:none;">وضع المشرف مفعّل</span>
     <button class="btn" id="btn-admin">دخول المشرف</button>
@@ -210,6 +267,12 @@
 </div>
 
 <button class="fab" id="btn-fab" title="إضافة شخص" style="display:none;">+</button>
+
+<div class="zoom-controls" id="zoom-controls" style="display:none;">
+  <button id="zoom-in" title="تكبير">+</button>
+  <button id="zoom-reset" title="إعادة الضبط"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 8 8 8"/></svg></button>
+  <button id="zoom-out" title="تصغير">-</button>
+</div>
 
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal" id="modal">
@@ -517,11 +580,12 @@
     const emptyState = document.getElementById('empty-state');
     const treeEl = document.getElementById('tree');
     const fab = document.getElementById('btn-fab');
+    const zoomControls = document.getElementById('zoom-controls');
     if (people.length === 0) {
-      emptyState.style.display = 'block'; treeEl.style.display = 'none'; fab.style.display = 'none';
+      emptyState.style.display = 'block'; treeEl.style.display = 'none'; fab.style.display = 'none'; zoomControls.style.display = 'none';
       return;
     }
-    emptyState.style.display = 'none'; treeEl.style.display = 'block'; fab.style.display = 'block';
+    emptyState.style.display = 'none'; treeEl.style.display = 'block'; fab.style.display = 'block'; zoomControls.style.display = 'flex';
 
     const level = computeLevels();
     const maxLevel = Math.max(...Object.values(level));
@@ -548,7 +612,7 @@
         unit.ids.forEach(pid => {
           const p = byId(pid);
           const card = document.createElement('div');
-          card.className = 'card'; card.dataset.id = pid;
+          card.className = 'card'; card.dataset.id = pid; card.dataset.name = p.name;
           const av = document.createElement('div'); av.className = 'avatar'; av.textContent = initials(p.name);
           card.appendChild(av);
           const nameEl = document.createElement('div'); nameEl.className = 'name'; nameEl.textContent = p.name;
@@ -558,6 +622,8 @@
           yearsEl.textContent = (p.birthYear || p.deathYear) ? (b + d) : '';
           card.appendChild(yearsEl);
           card.addEventListener('click', () => openDetail(pid));
+          card.addEventListener('mouseenter', () => onCardHoverEnter(pid));
+          card.addEventListener('mouseleave', () => onCardHoverLeave());
           unitEl.appendChild(card);
         });
         rowEl.appendChild(unitEl);
@@ -565,12 +631,84 @@
       blockEl.appendChild(rowEl);
       rowsEl.appendChild(blockEl);
     }
-    requestAnimationFrame(drawConnectors);
+    requestAnimationFrame(() => { drawConnectors(); applySearch(); if (pinnedId) applyHighlightVisual(pinnedId); });
   }
 
+  // ---------- Selection / relation highlighting ----------
+  // pinnedId: set while a person's detail modal is open, overrides hover.
+  let pinnedId = null;
+  function relatedIdsOf(id){
+    const p = byId(id);
+    if (!p) return [];
+    const children = people.filter(c => (c.parentIds||[]).includes(id)).map(c=>c.id);
+    return [...(p.parentIds||[]), ...(p.spouseIds||[]), ...children];
+  }
+  function applyHighlightVisual(id){
+    const treeEl = document.getElementById('tree');
+    treeEl.classList.add('hovering');
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('card-active','card-related'));
+    document.querySelectorAll('svg#connectors .conn-highlight').forEach(el => el.classList.remove('conn-highlight'));
+    const activeCard = document.querySelector('.card[data-id="'+id+'"]');
+    if (activeCard) activeCard.classList.add('card-active');
+    relatedIdsOf(id).forEach(rid => {
+      const el = document.querySelector('.card[data-id="'+rid+'"]');
+      if (el) el.classList.add('card-related');
+    });
+    document.querySelectorAll('svg#connectors [data-people]').forEach(el => {
+      const ids = el.dataset.people.split(',');
+      if (ids.includes(id)) el.classList.add('conn-highlight');
+    });
+  }
+  function clearHighlightVisual(){
+    document.getElementById('tree').classList.remove('hovering');
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('card-active','card-related'));
+    document.querySelectorAll('svg#connectors .conn-highlight').forEach(el => el.classList.remove('conn-highlight'));
+  }
+  function onCardHoverEnter(id){ applyHighlightVisual(pinnedId || id); }
+  function onCardHoverLeave(){ if (pinnedId) applyHighlightVisual(pinnedId); else clearHighlightVisual(); }
+  function pinHighlight(id){ pinnedId = id; applyHighlightVisual(id); }
+  function unpinHighlight(){ pinnedId = null; clearHighlightVisual(); }
+
+  // ---------- Search ----------
+  let searchQuery = '';
+  function applySearch(){
+    const treeEl = document.getElementById('tree');
+    if (!searchQuery) { treeEl.classList.remove('searching'); document.querySelectorAll('.card').forEach(c=>{ c.classList.remove('dim','match'); }); return; }
+    treeEl.classList.add('searching');
+    let firstMatch = null;
+    document.querySelectorAll('.card').forEach(c => {
+      const isMatch = (c.dataset.name||'').toLowerCase().includes(searchQuery);
+      c.classList.toggle('dim', !isMatch);
+      c.classList.toggle('match', isMatch);
+      if (isMatch && !firstMatch) firstMatch = c;
+    });
+    if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  }
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    applySearch();
+  });
+
+  // ---------- Zoom ----------
+  let zoomLevel = 1;
+  function applyZoom(){
+    const treeEl = document.getElementById('tree');
+    treeEl.style.transform = zoomLevel === 1 ? '' : 'scale(' + zoomLevel + ')';
+    treeEl.style.transformOrigin = 'top center';
+  }
+  document.getElementById('zoom-in').addEventListener('click', () => { zoomLevel = Math.min(1.5, +(zoomLevel + 0.15).toFixed(2)); applyZoom(); });
+  document.getElementById('zoom-out').addEventListener('click', () => { zoomLevel = Math.max(0.4, +(zoomLevel - 0.15).toFixed(2)); applyZoom(); });
+  document.getElementById('zoom-reset').addEventListener('click', () => { zoomLevel = 1; applyZoom(); });
+
+  let treeGrown = false;
   function drawConnectors(){
     const svg = document.getElementById('connectors');
     const treeEl = document.getElementById('tree');
+    // Measure in canonical (unscaled) space so zoom never double-applies to line coordinates.
+    const prevTransform = treeEl.style.transform;
+    treeEl.style.transform = 'none';
+    void treeEl.offsetHeight;
+
     const treeRect = treeEl.getBoundingClientRect();
     svg.innerHTML = '';
     svg.setAttribute('width', treeEl.scrollWidth);
@@ -590,7 +728,8 @@
         const y = (r1.top + r1.bottom)/2 - treeRect.top;
         const x1 = r1.right - treeRect.left;
         const x2 = r2.left - treeRect.left;
-        drawLine(svg, x1, y, x2, y);
+        const ids = [cards[0].dataset.id, cards[1].dataset.id];
+        drawLine(svg, x1, y, x2, y, 2, ids);
       }
     });
     const groups = {};
@@ -605,29 +744,91 @@
       const parentEls = g.parents.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
       const childEls = g.children.map(id => document.querySelector('.card[data-id="'+id+'"]')).filter(Boolean);
       if (parentEls.length === 0 || childEls.length === 0) return;
+      const groupIds = [...g.parents, ...g.children];
+      const weight = Math.min(4.5, 2 + g.children.length * 0.35);
       const parentPoints = parentEls.map(el => centerOf(el, 'bottom'));
       const midX = parentPoints.reduce((s,p)=>s+p.x,0) / parentPoints.length;
       const midY = Math.max(...parentPoints.map(p=>p.y));
       const dropY = midY + 26;
-      parentPoints.forEach(pp => drawLine(svg, pp.x, pp.y, pp.x, dropY));
-      if (parentPoints.length > 1) drawLine(svg, Math.min(...parentPoints.map(p=>p.x)), dropY, Math.max(...parentPoints.map(p=>p.x)), dropY);
-      drawLine(svg, midX, dropY, midX, dropY + 14);
+
+      if (parentPoints.length >= 2) {
+        const sorted = [...parentPoints].sort((a,b)=>a.x-b.x);
+        const first = sorted[0], last = sorted[sorted.length-1];
+        const pts = [first, {x:first.x,y:dropY}, {x:last.x,y:dropY}, last];
+        drawPath(svg, roundedPolylinePath(pts, 12), weight, groupIds);
+        sorted.slice(1,-1).forEach(pp => drawLine(svg, pp.x, pp.y, pp.x, dropY, weight, groupIds));
+      } else {
+        drawLine(svg, parentPoints[0].x, parentPoints[0].y, parentPoints[0].x, dropY, weight, groupIds);
+      }
+
+      drawLine(svg, midX, dropY, midX, dropY + 14, weight, groupIds);
       const childPoints = childEls.map(el => centerOf(el, 'top'));
       const busY = dropY + 14;
       if (childPoints.length > 0) {
         const minX = Math.min(midX, ...childPoints.map(p=>p.x));
         const maxX = Math.max(midX, ...childPoints.map(p=>p.x));
-        drawLine(svg, minX, busY, maxX, busY);
-        childPoints.forEach(cp => drawLine(svg, cp.x, busY, cp.x, cp.y));
+        drawLine(svg, minX, busY, maxX, busY, weight, groupIds);
+        const sortedC = [...childPoints].sort((a,b)=>a.x-b.x);
+        sortedC.forEach((cp, idx) => {
+          if (sortedC.length > 1 && (idx === 0 || idx === sortedC.length-1)) {
+            const dir = cp.x < midX ? 1 : -1;
+            const pts = [{x: cp.x + dir*20, y: busY}, {x: cp.x, y: busY}, {x: cp.x, y: cp.y}];
+            drawPath(svg, roundedPolylinePath(pts, 8), weight, groupIds);
+          } else {
+            drawLine(svg, cp.x, busY, cp.x, cp.y, weight, groupIds);
+          }
+        });
       }
     });
+
+    treeEl.style.transform = prevTransform;
+
+    if (!treeGrown) { animateGrowth(svg); treeGrown = true; }
   }
-  function drawLine(svg, x1,y1,x2,y2){
+
+  function roundedPolylinePath(points, r){
+    if (points.length < 2) return '';
+    let d = 'M ' + points[0].x + ' ' + points[0].y + ' ';
+    for (let i = 1; i < points.length; i++) {
+      const curr = points[i], prev = points[i-1], next = points[i+1];
+      if (!next) { d += 'L ' + curr.x + ' ' + curr.y + ' '; continue; }
+      const dPrev = Math.hypot(curr.x-prev.x, curr.y-prev.y) || 1;
+      const dNext = Math.hypot(next.x-curr.x, next.y-curr.y) || 1;
+      const rr = Math.min(r, dPrev/2, dNext/2);
+      const ax = curr.x - (curr.x-prev.x)/dPrev*rr, ay = curr.y - (curr.y-prev.y)/dPrev*rr;
+      const bx = curr.x + (next.x-curr.x)/dNext*rr, by = curr.y + (next.y-curr.y)/dNext*rr;
+      d += 'L ' + ax + ' ' + ay + ' Q ' + curr.x + ' ' + curr.y + ' ' + bx + ' ' + by + ' ';
+    }
+    return d;
+  }
+  function drawLine(svg, x1,y1,x2,y2, weight, peopleIds){
     const line = document.createElementNS('http://www.w3.org/2000/svg','line');
     line.setAttribute('x1', x1); line.setAttribute('y1', y1);
     line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-    line.setAttribute('stroke', 'var(--line)'); line.setAttribute('stroke-width', '2');
+    if (weight) line.setAttribute('stroke-width', weight);
+    if (peopleIds) line.dataset.people = peopleIds.join(',');
     svg.appendChild(line);
+  }
+  function drawPath(svg, d, weight, peopleIds){
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    if (weight) path.setAttribute('stroke-width', weight);
+    if (peopleIds) path.dataset.people = peopleIds.join(',');
+    svg.appendChild(path);
+  }
+  function animateGrowth(svg){
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const elements = svg.querySelectorAll('line, path');
+    elements.forEach(el => {
+      const len = el.getTotalLength ? el.getTotalLength() : 0;
+      if (!len) return;
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+      el.style.transition = 'none';
+      void el.getBoundingClientRect();
+      el.style.transition = 'stroke-dashoffset 900ms ease, stroke .2s ease, stroke-width .2s ease';
+      requestAnimationFrame(() => { el.style.strokeDashoffset = '0'; });
+    });
   }
   window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
 
@@ -637,7 +838,7 @@
   const modalBody = document.getElementById('modal-body');
   const modalSave = document.getElementById('modal-save');
   const modalCancel = document.getElementById('modal-cancel');
-  function closeModal(){ backdrop.classList.remove('open'); modalSave.style.display = ''; }
+  function closeModal(){ backdrop.classList.remove('open'); modalSave.style.display = ''; unpinHighlight(); }
   modalCancel.addEventListener('click', closeModal);
   backdrop.addEventListener('click', (e)=>{ if (e.target === backdrop) closeModal(); });
 
@@ -737,6 +938,7 @@
   function openDetail(id){
     const p = byId(id);
     if (!p) return;
+    pinHighlight(id);
     const admin = isAdminUnlocked();
     modalTitle.textContent = p.name;
     const parents = (p.parentIds||[]).map(pid=>byId(pid)).filter(Boolean);
